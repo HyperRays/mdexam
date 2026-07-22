@@ -314,8 +314,7 @@ $\pi$ to 3 decimals: [[input 3.1416]]{check=num tol=0.001}
 
 ## 8. Worked solutions and feedback
 
-A `:::solution` container placed **directly after a question** attaches to
-it and is revealed once the exam is graded (unless the frontmatter disables
+A `:::solution` container is revealed once the exam is graded (unless the metadata disables
 this). It holds arbitrary markdown, including math:
 
 ```markdown
@@ -326,9 +325,6 @@ Integrate by parts with $u = x$, $dv = e^x dx$:
 $\int x e^x\,dx = x e^x - \int e^x\,dx = (x-1)e^x$.
 :::
 ```
-
-One solution block per question; a block with no preceding question is
-displayed as ordinary (initially hidden) content.
 
 For short, immediate hints use the `wrong` attribute instead — it appears
 inline under the widget only when the answer is incorrect:
