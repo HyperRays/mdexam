@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mdexam</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=STIX+Two+Text:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+
+<script src="https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/dist/markdown-it.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+
+<style>
+:root{
+  --paper: white;
+  --paper-dim:#F1EEE5;
+  --ink:#22242A;
+  --ink-soft:#5B5E66;
+  --pen:#2B4EA3;
+  --pen-soft:#DFE6F5;
+  --ok:#22694B;
+  --ok-soft:#E2EFE7;
+  --bad:#A83A32;
+  --bad-soft:#F6E4E1;
+  --rule:#DCD8CD;
+  --serif:"STIX Two Text", Georgia, serif;
+  --mono:"IBM Plex Mono", ui-monospace, monospace;
+  --ui:"Inter", system-ui, sans-serif;
+}
+*{box-sizing:border-box}
+html{background:var(--paper)}
+body{
+  margin:0; color:var(--ink); font-family:var(--serif);
+  font-size:17.5px; line-height:1.65;
+  padding-bottom:110px;
+}
+.wrap{max-width:730px; margin:0 auto; padding:48px 24px 0}
+
+/* ---------- exam title block ---------- */
+header.exam-head{margin-bottom:36px}
+.exam-eyebrow{
+  font-family:var(--ui); font-size:11px; font-weight:600; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--ink-soft); margin-bottom:10px;
+}
+h1.exam-title{
+  font-size:34px; font-weight:700; line-height:1.2; margin:0 0 14px;
+  letter-spacing:-.01em;
+}
+.exam-meta{
+  font-family:var(--ui); font-size:13px; color:var(--ink-soft);
+  display:flex; gap:18px; flex-wrap:wrap; margin-bottom:16px;
+}
+.exam-meta b{color:var(--ink); font-weight:600}
+.double-rule{border:0; border-top:3px solid var(--ink); margin:0 0 3px}
+.double-rule + hr{border:0; border-top:1px solid var(--ink); margin:0}
+
+/* ---------- prose ---------- */
+#exam h1,#exam h2,#exam h3{font-weight:600; letter-spacing:-.005em; line-height:1.25}
+#exam h1{font-size:25px; margin:44px 0 14px; padding-top:20px; border-top:1px solid var(--rule)}
+#exam h2{font-size:21px; margin:36px 0 12px}
+#exam p{margin:14px 0}
+#exam code{
+  font-family:var(--mono); font-size:.85em; background:var(--paper-dim);
+  padding:1px 5px; border-radius:3px;
+}
+#exam a{color:var(--pen)}
+
+.math[data-display="1"]{display:block; text-align:center; margin:10px 0}
+
+/* ---------- answer blank (signature element) ---------- */
+.ans{display:inline-flex; align-items:baseline; gap:10px; flex-wrap:wrap; vertical-align:baseline}
+.ans-input{
+  font-family:var(--mono); font-size:15px; color:var(--pen);
+  background:transparent; border:0; border-bottom:1.6px solid var(--ink);
+  padding:2px 4px 3px; min-width:190px; outline:none;
+  transition:border-color .15s, background .15s;
+}
+.ans-input::placeholder{color:#B7B4AA; font-size:13px}
+.ans-input:focus{border-bottom-color:var(--pen); background:var(--pen-soft)}
+.ans-preview{
+  color:var(--pen); font-size:.95em; min-height:1em;
+}
+.ans-preview:not(:empty)::before{content:"→"; color:var(--ink-soft); font-family:var(--ui); font-size:12px; margin-right:7px}
+.ans-preview.err{font-family:var(--ui); font-size:12px; color:var(--bad)}
+
+/* dropdown (custom listbox so choices can hold KaTeX) */
+.dd-wrap{position:relative; display:inline-block; vertical-align:baseline}
+.dd-btn{
+  font:inherit; font-family:var(--serif); font-size:.95em; color:var(--pen);
+  background:transparent; border:0; border-bottom:1.6px solid var(--ink);
+  padding:1px 3px 2px; cursor:pointer;
+  display:inline-flex; align-items:baseline; gap:7px;
+  transition:border-color .15s, background .15s;
+}
+.dd-btn:focus-visible{outline:2px solid var(--pen); outline-offset:2px}
+.dd-btn .dd-placeholder{color:#8E8B82; font-family:var(--ui); font-size:13px}
+.dd-caret{font-size:10px; color:var(--ink-soft); transform:translateY(-1px)}
+.dd-pop{
+  position:absolute; left:0; top:calc(100% + 5px); z-index:20;
+  min-width:max-content; background:var(--paper);
+  border:1px solid var(--rule); border-radius:6px;
+  box-shadow:0 6px 22px rgba(20,20,25,.12); padding:4px;
+}
+.dd-opt{padding:6px 16px 6px 12px; border-radius:4px; cursor:pointer; white-space:nowrap}
+.dd-opt:hover, .dd-opt:focus{background:var(--pen-soft); outline:none}
+.dd-opt[aria-selected="true"]{color:var(--pen); font-weight:600}
+
+/* true / false */
+.tf{display:inline-flex; border:1.4px solid var(--ink); border-radius:4px; overflow:hidden; vertical-align:middle}
+.tf button{
+  font-family:var(--ui); font-size:13px; font-weight:500; cursor:pointer;
+  background:transparent; color:var(--ink); border:0; padding:4px 14px;
+}
+.tf button + button{border-left:1.4px solid var(--ink)}
+.tf button.sel{background:var(--pen); color:#fff}
+.tf button:focus-visible{outline:2px solid var(--pen); outline-offset:-2px}
+
+/* mc / multi lists */
+ul.mc-list{list-style:none; padding-left:6px; margin:12px 0}
+ul.mc-list li{margin:8px 0; display:flex; align-items:baseline; gap:11px}
+ul.mc-list input{
+  accent-color:var(--pen); width:16px; height:16px; flex:none;
+  position:relative; top:2px; cursor:pointer;
+}
+ul.mc-list label{cursor:pointer}
+
+/* points chip + result marks */
+.pts{
+  font-family:var(--ui); font-size:10.5px; font-weight:600; letter-spacing:.06em;
+  color:var(--ink-soft); background:var(--paper-dim); border-radius:999px;
+  padding:2px 8px; margin-left:8px; vertical-align:2px; white-space:nowrap;
+}
+.mark{font-family:var(--ui); font-weight:600; font-size:14px; margin-left:6px}
+.q-ok .mark::before{content:"✓ correct"; color:var(--ok)}
+.q-bad .mark::before{content:"✗"; color:var(--bad)}
+.q-ok .ans-input, .q-ok .dd-btn{border-bottom-color:var(--ok); background:var(--ok-soft)}
+.q-bad .ans-input, .q-bad .dd-btn{border-bottom-color:var(--bad); background:var(--bad-soft)}
+.q-ok .tf button.sel{background:var(--ok)}
+.q-bad .tf button.sel{background:var(--bad)}
+.wrong-note{
+  display:block; font-family:var(--ui); font-size:13px; color:var(--bad); margin-top:4px;
+}
+
+/* worked solutions */
+.solution{
+  display:none; margin:16px 0 22px; padding:12px 18px 6px;
+  background:var(--paper-dim); border-left:3px solid var(--pen);
+  font-size:16px;
+}
+.solution.show{display:block}
+.solution-label{
+  font-family:var(--ui); font-size:10.5px; font-weight:600; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--pen); margin-bottom:2px;
+}
+
+/* ---------- grade bar ---------- */
+.bar{
+  position:fixed; left:0; right:0; bottom:0; z-index:10;
+  background:var(--paper); border-top:1px solid var(--rule);
+  font-family:var(--ui);
+}
+.bar-in{
+  max-width:730px; margin:0 auto; padding:12px 24px;
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+}
+.engine{display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--ink-soft)}
+.dot{width:8px; height:8px; border-radius:50%; background:#C9A227; flex:none}
+.dot.ready{background:var(--ok)} .dot.fail{background:var(--bad)}
+.score{font-size:14px; font-weight:600; margin-left:auto}
+.bar button, .bar label.filebtn{
+  font-family:var(--ui); font-size:13.5px; font-weight:500; cursor:pointer;
+  border-radius:5px; padding:8px 16px; border:1.4px solid var(--ink);
+  background:transparent; color:var(--ink); transition:background .15s;
+}
+.bar button.primary{background:var(--pen); border-color:var(--pen); color:#fff}
+.bar button.primary:hover{background:#233F85}
+.bar button:disabled{opacity:.45; cursor:default}
+.bar button:focus-visible, .bar label.filebtn:focus-within{outline:2px solid var(--pen); outline-offset:2px}
+input[type=file]{position:absolute; width:1px; height:1px; opacity:0}
+
+footer.colophon{
+  margin:56px 0 20px; padding-top:14px; border-top:1px solid var(--rule);
+  font-family:var(--ui); font-size:12px; color:var(--ink-soft);
+}
+footer.colophon a{color:var(--ink-soft)}
+@media (prefers-reduced-motion: reduce){ *{transition:none !important} }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="exam-head">
+    <h1 class="exam-title" id="title">—</h1>
+    <div class="exam-meta">
+      <span>Total <b id="total-pts">0 pts</b></span>
+    </div>
+    <hr class="double-rule"><hr>
+  </header>
+
+  <main id="exam" aria-live="polite"></main>
+
+  <footer class="colophon">
+    Algebraic checking by SymPy in your browser (Pyodide) · input follows
+    <a href="https://docs.stack-assessment.org/en/Students/Answer_input/" target="_blank" rel="noopener">STACK answer-input conventions</a>
+  </footer>
+</div>
+
+<div class="bar">
+  <div class="bar-in">
+    <span class="engine"><span class="dot" id="engine-dot"></span><span id="engine-txt">Loading math engine…</span></span>
+    <label class="filebtn">Load exam (.md)<input type="file" id="file" accept=".md,.markdown,.txt"></label>
+    <button id="reset">Reset</button>
+    <span class="score" id="score"></span>
+    <button class="primary" id="grade">Check answers</button>
+  </div>
+</div>
+
+<!-- ================= sample exam (the file format) ================= -->
+<script type="text/plain" id="sample-exam">---
+title: Demo: Calculus Practice A
+---
+
+# Part 1 · Differentiation
+
+Let $f(x) = e^{-x^2}$.
+
+The function $f$ is [[dropdown *even | odd | neither]]{points=1}
+and its maximum value is $f(0) =$ [[input 1]]{points=1}.
+
+Compute $f'(x) =$ [[input -2*x*e^(-x^2)]]{points=2 wrong="Chain rule: differentiate the outer exp, then the inner -x^2."}
+
+:::solution
+Write $f = e^u$ with $u = -x^2$. Then
+$f'(x) = e^{-x^2} \cdot (-2x) = -2x\,e^{-x^2}$.
+:::
+
+$f$ is differentiable at every point of $\mathbb{R}$. [[tf true]]{points=1}
+
+# Part 2 · Integration
+
+Compute $\displaystyle\int \sin^2(x)\,\mathrm{d}x$ (omit the constant):
+[[input x/2 - sin(x)*cos(x)/2]]{points=3}
+
+:::solution
+Use $\sin^2 x = \tfrac{1 - \cos 2x}{2}$, so the integral is
+$\tfrac{x}{2} - \tfrac{\sin 2x}{4}$, which equals
+$\tfrac{x}{2} - \tfrac{\sin x \cos x}{2}$. Any algebraically
+equivalent form is accepted.
+:::
+
+Which statements hold for every continuous $g:[0,1]\to\mathbb{R}$? [[multi]]{points=2}
+
+- [x] $g$ has an antiderivative on $(0,1)$
+- [ ] $g$ is differentiable on $(0,1)$
+- [x] $g$ attains a maximum on $[0,1]$
+
+:::solution
+Continuity gives antiderivatives (fundamental theorem of calculus) and
+extrema on compact intervals (extreme value theorem), but not
+differentiability — $|x - \tfrac12|$ is a counterexample.
+:::
+
+# Part 3 · Equations and matrices
+
+Give an equation for the tangent line to $y = x^2$ at $x = 1$:
+[[input y = 2*x - 1]]{points=2 wrong="Point (1,1), slope f'(1)=2."}
+
+:::solution
+Slope $f'(1) = 2$ through $(1,1)$: $y - 1 = 2(x-1)$, i.e. $y = 2x - 1$.
+Any nonzero multiple, e.g. $2y = 4x - 2$, is accepted.
+:::
+
+For $A = \begin{pmatrix}1&2\\3&4\end{pmatrix}$: $\det A =$ [[dropdown $2$ | *$-2$ | $\tfrac{1}{2}$]]{points=1}
+
+Pick the best answer: the matrix $A$ is [[mc]]{points=1}
+
+- [ ] singular
+- [x] invertible
+- [ ] symmetric
+
+Enter $A^{-1}$ for $A = \begin{pmatrix}1&2\\3&4\end{pmatrix}$, as
+`matrix([...],[...])`: [[input matrix([-2,1],[3/2,-1/2])]]{points=2}
+
+:::solution
+$\det A = -2$, so
+$A^{-1} = \tfrac{1}{-2}\begin{pmatrix}4&-2\\-3&1\end{pmatrix}
+= \begin{pmatrix}-2&1\\ 3/2&-1/2\end{pmatrix}$.
+:::
+</script>
+
+<!-- ================= python checker (runs in pyodide) ================= -->
+<script type="text/plain" id="checker-py">
+import json
+import sympy as sp
+from sympy.parsing.sympy_parser import (
+    parse_expr, standard_transformations,
+    implicit_multiplication_application, convert_xor,
+)
+
+TRANSFORMS = standard_transformations + (convert_xor, implicit_multiplication_application)
+ASSUME_KEYS = {"positive", "negative", "real", "integer", "rational", "nonzero", "nonnegative"}
+
+def _lg(x, base=10):
+    return sp.log(x, base)
+
+def _root(x, n=2):
+    return sp.Pow(x, sp.Rational(1, n))
+
+def _matrix(*rows):
+    return sp.ImmutableMatrix([list(r) for r in rows])
+
+def build_locals(variables, assume):
+    loc = {}
+    for v in variables:
+        kw = {}
+        for a in assume.get(v, []):
+            if a in ASSUME_KEYS:
+                kw[a] = True
+        loc[v] = sp.Symbol(v, **kw)
+    defaults = {
+        "pi": sp.pi, "e": sp.E, "i": sp.I, "j": sp.I,
+        "ln": sp.log, "lg": _lg, "root": _root, "sqrt": sp.sqrt,
+        "abs": sp.Abs, "realpart": sp.re, "imagpart": sp.im, "matrix": _matrix, "exp": sp.exp, "inf": sp.oo,
+    }
+    for k, val in defaults.items():
+        if k not in loc:
+            loc[k] = val
+    return loc
+
+def _pre(s):
+    s = s.strip()
+    return s.replace("%pi", "pi").replace("%e", "e").replace("%i", "i")
+
+def _split_relation(s):
+    depth = 0
+    for idx, ch in enumerate(s):
+        if ch in "([{":
+            depth += 1
+        elif ch in ")]}":
+            depth -= 1
+        elif depth == 0 and ch == "#":
+            return ("#", s[:idx], s[idx + 1:])
+        elif depth == 0 and ch == "=":
+            if idx > 0 and s[idx - 1] in "<>!=":
+                continue
+            if idx + 1 < len(s) and s[idx + 1] == "=":
+                continue
+            return ("=", s[:idx], s[idx + 1:])
+    return (None, s, None)
+
+def parse_stack(s, variables=None, assume=None):
+    variables = variables or []
+    assume = assume or {}
+    loc = build_locals(variables, assume)
+    s = _pre(s)
+    if not s:
+        raise ValueError("empty input")
+    op, lhs, rhs = _split_relation(s)
+
+    def p(t):
+        r = parse_expr(t, transformations=TRANSFORMS, local_dict=loc, evaluate=True)
+        if isinstance(r, set):
+            r = sp.FiniteSet(*r)
+        if isinstance(r, (list, tuple)):
+            r = sp.Tuple(*r)
+        return r
+
+    if op == "=":
+        return sp.Eq(p(lhs), p(rhs), evaluate=False)
+    if op == "#":
+        return sp.Ne(p(lhs), p(rhs), evaluate=False)
+    return p(s)
+
+def _eq_as_diff(x):
+    return sp.expand(x.lhs - x.rhs)
+
+def _equiv_exprs(s, a):
+    # equals() can return false negatives (e.g. with conjugate/Abs), so a
+    # True from it is trusted but a False is not final; try three routes.
+    try:
+        if s.equals(a) is True:
+            return True
+    except Exception:
+        pass
+    try:
+        if sp.simplify(s - a) == 0:
+            return True
+    except Exception:
+        pass
+    try:
+        if sp.simplify(sp.expand_complex(s - a)) == 0:
+            return True
+    except Exception:
+        pass
+    return False
+
+def _equiv(s, a):
+    if isinstance(s, sp.MatrixBase) or isinstance(a, sp.MatrixBase):
+        if not (isinstance(s, sp.MatrixBase) and isinstance(a, sp.MatrixBase)):
+            return False
+        if s.shape != a.shape:
+            return False
+        return sp.simplify(s - a).is_zero_matrix is True
+    if isinstance(s, sp.Set) or isinstance(a, sp.Set):
+        return isinstance(s, sp.Set) and isinstance(a, sp.Set) and sp.simplify(s) == sp.simplify(a)
+    if isinstance(s, sp.Tuple) or isinstance(a, sp.Tuple):
+        return (isinstance(s, sp.Tuple) and isinstance(a, sp.Tuple)
+                and len(s) == len(a) and all(_equiv(x, y) for x, y in zip(s, a)))
+    if isinstance(s, sp.Eq) or isinstance(a, sp.Eq):
+        if not (isinstance(s, sp.Eq) and isinstance(a, sp.Eq)):
+            return False
+        ds, da = _eq_as_diff(s), _eq_as_diff(a)
+        if ds == 0 or da == 0:
+            return sp.simplify(ds - da) == 0
+        ratio = sp.simplify(sp.cancel(ds / da))
+        return ratio.free_symbols == set() and ratio != 0
+    if isinstance(s, sp.Rel) or isinstance(a, sp.Rel):
+        if type(s) is not type(a):
+            return False
+        return _equiv_exprs(s.lhs, a.lhs) and _equiv_exprs(s.rhs, a.rhs)
+    return _equiv_exprs(s, a)
+
+def _matrix_preview(*rows):
+    return sp.UnevaluatedExpr(sp.ImmutableMatrix([list(r) for r in rows]))
+
+def _tidy(e):
+    try:
+        if not e.args:
+            return e
+        args = [_tidy(a) for a in e.args]
+        if isinstance(e, sp.Mul):
+            kept = [a for a in args if a is not sp.S.One]
+            if not kept:
+                return sp.S.One
+            if len(kept) == 1:
+                return kept[0]
+            if len(kept) != len(args):
+                return sp.Mul(*kept, evaluate=False)
+        if args != list(e.args):
+            return e.func(*args, evaluate=False)
+        return e
+    except Exception:
+        return e
+
+def _preview_latex(s, variables, assume):
+    """Parse without evaluation so the preview mirrors the typed input."""
+    loc = build_locals(variables, assume)
+    loc["matrix"] = _matrix_preview
+    s = _pre(s)
+    if not s:
+        raise ValueError("empty input")
+    op, lhs, rhs = _split_relation(s)
+
+    def p(t):
+        return _tidy(parse_expr(t, transformations=TRANSFORMS, local_dict=loc, evaluate=False))
+
+    if op == "=":
+        return sp.latex(sp.Eq(p(lhs), p(rhs), evaluate=False))
+    if op == "#":
+        return sp.latex(sp.Ne(p(lhs), p(rhs), evaluate=False))
+    return sp.latex(p(s))
+
+def js_latex(s, vars_csv, assume_json):
+    variables = [v for v in vars_csv.split(",") if v]
+    assume = json.loads(assume_json) if assume_json else {}
+    try:
+        return json.dumps({"ok": True, "latex": _preview_latex(s, variables, assume)})
+    except Exception:
+        # fall back to the evaluated parse; only report an error if that fails too
+        try:
+            return json.dumps({"ok": True, "latex": sp.latex(parse_stack(s, variables, assume))})
+        except Exception as ex:
+            return json.dumps({"ok": False, "error": str(ex)})
+
+def js_check(student, answer, vars_csv, assume_json, mode, tol):
+    variables = [v for v in vars_csv.split(",") if v]
+    assume = json.loads(assume_json) if assume_json else {}
+    try:
+        s = parse_stack(student, variables, assume)
+        a = parse_stack(answer, variables, assume)
+    except Exception as ex:
+        return json.dumps({"ok": False, "error": "parse: " + str(ex)})
+    try:
+        if mode == "cas-equal":
+            ok = sp.srepr(s) == sp.srepr(a)
+        elif mode == "num":
+            t = sp.Float(tol if tol and tol > 0 else 1e-6)
+            d = sp.Abs(sp.N(s - a))
+            ok = bool(d.is_number and d < t)
+        else:
+            ok = _equiv(s, a)
+        return json.dumps({"ok": bool(ok), "error": None})
+    except Exception as ex:
+        return json.dumps({"ok": False, "error": "check: " + str(ex)})
+</script>
+
+<script>
+/* =================== parsing =================== */
+
+function parseAttrs(str){
+  const out = {};
+  if(!str) return out;
+  const toks = str.match(/(?:[^\s"]+|"[^"]*")+/g) || [];
+  for(const t of toks){
+    if(t[0] === '#'){ out.id = t.slice(1); continue; }
+    const eq = t.indexOf('=');
+    if(eq < 0){ out[t] = true; continue; }
+    let k = t.slice(0, eq), v = t.slice(eq + 1);
+    if(v[0] === '"' && v[v.length-1] === '"') v = v.slice(1, -1);
+    out[k] = v;
+  }
+  return out;
+}
+
+function parseAssume(str){
+  // "x:positive+integer,y:real" -> {x:[positive,integer], y:[real]}
+  const out = {};
+  if(!str) return out;
+  for(const part of str.split(',')){
+    const [v, a] = part.split(':');
+    if(v && a) out[v.trim()] = a.split('+').map(s => s.trim());
+  }
+  return out;
+}
+
+function parseMarker(inner, attrStr){
+  const sp = inner.search(/\s/);
+  const type = (sp < 0 ? inner : inner.slice(0, sp)).toLowerCase();
+  let payload = sp < 0 ? '' : inner.slice(sp + 1).trim();
+  if(!['input','dropdown','tf','mc','multi'].includes(type)) return null;
+  const at = parseAttrs(attrStr);
+  const q = {
+    type,
+    points: at.points !== undefined ? parseFloat(at.points) : 1,
+    check: at.check || 'alg-equiv',
+    tol: at.tol !== undefined ? parseFloat(at.tol) : 0,
+    vars: (at.vars || '').split(',').map(s=>s.trim()).filter(Boolean),
+    assume: parseAssume(at.assume),
+    wrong: at.wrong || '',
+    shuffle: !!at.shuffle,
+    id: at.id || null,
+  };
+  if(type === 'input'){
+    if(payload[0] === '"' && payload[payload.length-1] === '"') payload = payload.slice(1,-1);
+    q.answer = payload;
+  } else if(type === 'dropdown'){
+    q.choices = payload.split('|').map(s => s.trim()).filter(Boolean)
+      .map(c => c[0] === '*' ? {text:c.slice(1).trim(), correct:true} : {text:c, correct:false});
+  } else if(type === 'tf'){
+    q.answer = payload.toLowerCase() === 'true';
+  }
+  return q;
+}
+
+/* markdown-it inline rule: [[type payload]]{attrs}
+   Scans for the first ]] at square-bracket depth 0, so answers like
+   matrix([1,2],[3,4]) or [1,2,2] work. */
+function examMarkerPlugin(md, ctx){
+  md.inline.ruler.before('link', 'exam_marker', function(state, silent){
+    const src = state.src, pos = state.pos;
+    if(src.charCodeAt(pos) !== 0x5B || src.charCodeAt(pos+1) !== 0x5B) return false;
+    let lineEnd = src.indexOf('\n', pos); if(lineEnd < 0) lineEnd = src.length;
+    let i = pos + 2, depth = 0, close = -1;
+    while(i < lineEnd){
+      const c = src[i];
+      if(c === '[') depth++;
+      else if(c === ']'){
+        if(depth === 0 && src[i+1] === ']'){ close = i; break; }
+        depth = Math.max(0, depth - 1);
+      }
+      i++;
+    }
+    if(close < 0) return false;
+    const inner = src.slice(pos + 2, close).trim();
+    let end = close + 2, attrStr = '';
+    if(src[end] === '{'){
+      const ac = src.indexOf('}', end);
+      if(ac >= 0 && ac <= lineEnd){ attrStr = src.slice(end + 1, ac); end = ac + 1; }
+    }
+    const q = parseMarker(inner, attrStr);
+    if(!q) return false;
+    if(!silent){
+      q.index = ctx.questions.length;
+      if(!q.id) q.id = 'q' + (q.index + 1);
+      ctx.questions.push(q);
+      const tok = state.push('exam_marker', '', 0);
+      tok.meta = q.index;
+    }
+    state.pos = end;
+    return true;
+  });
+  md.renderer.rules.exam_marker = (tokens, idx) =>
+    `<span class="q-slot" data-q="${tokens[idx].meta}"></span>`;
+}
+
+/* $...$ / $$...$$ protection: capture math before markdown mangles backslashes,
+   emit raw (escaped) TeX in a span; */
+function mathPlugin(md){
+  const esc = md.utils.escapeHtml;
+  md.inline.ruler.before('escape', 'math', function(state, silent){
+    const src = state.src, pos = state.pos;
+    if(src[pos] !== '$') return false;
+    const display = src[pos+1] === '$';
+    const open = display ? pos + 2 : pos + 1;
+    const closer = display ? '$$' : '$';
+    if(!display && (open >= src.length || /\s/.test(src[open]))) return false;
+    let end = -1, i = open;
+    while(i < src.length){
+      const idx = src.indexOf(closer, i);
+      if(idx < 0) break;
+      if(src[idx-1] === '\\'){ i = idx + 1; continue; }
+      end = idx; break;
+    }
+    if(end < 0 || end === open) return false;
+    if(!display && /\s/.test(src[end-1])) return false;
+    if(!silent){
+      const tok = state.push('math', '', 0);
+      tok.content = src.slice(open, end);
+      tok.meta = {display};
+    }
+    state.pos = end + closer.length;
+    return true;
+  });
+  md.renderer.rules.math = (tokens, idx) => {
+    const t = tokens[idx];
+    return `<span class="math" data-display="${t.meta.display ? 1 : 0}">${esc(t.content)}</span>`;
+  };
+}
+
+/* :::solution ... ::: block container */
+function solutionPlugin(md){
+  md.block.ruler.before('fence', 'solution', function(state, startLine, endLine, silent){
+    let s = state.bMarks[startLine] + state.tShift[startLine];
+    let e = state.eMarks[startLine];
+    if(!/^:::\s*solution\s*$/.test(state.src.slice(s, e))) return false;
+    if(silent) return true;
+    let next = startLine + 1;
+    for(; next < endLine; next++){
+      s = state.bMarks[next] + state.tShift[next];
+      e = state.eMarks[next];
+      if(/^:::\s*$/.test(state.src.slice(s, e))) break;
+    }
+    state.push('solution_open', 'div', 1);
+    const oldMax = state.lineMax;
+    state.lineMax = next;
+    state.md.block.tokenize(state, startLine + 1, next);
+    state.lineMax = oldMax;
+    state.push('solution_close', 'div', -1);
+    state.line = next + 1;
+    return true;
+  });
+  md.renderer.rules.solution_open = () =>
+    '<div class="solution"><div class="solution-label">Solution</div>';
+  md.renderer.rules.solution_close = () => '</div>';
+}
+
+function stripFrontmatter(text){
+  const meta = {};
+  const m = text.match(/^---\n([\s\S]*?)\n---\n?/);
+  if(m){
+    for(const line of m[1].split('\n')){
+      const c = line.indexOf(':');
+      if(c > 0) meta[line.slice(0,c).trim()] = line.slice(c+1).trim();
+    }
+    text = text.slice(m[0].length);
+  }
+  return {meta, body: text};
+}
+
+function parseExam(text){
+  text = text.replace(/\r\n?/g, '\n');
+  const {meta, body} = stripFrontmatter(text);
+  const ctx = {questions: []};
+  const md = window.markdownit({html:false, linkify:false, typographer:false});
+  md.use(m => examMarkerPlugin(m, ctx));
+  md.use(solutionPlugin);
+  md.use(mathPlugin);
+  const html = md.render(body);
+  return {meta, html, questions: ctx.questions};
+}
+
+/* =================== DOM / app layer =================== */
+(function(){
+if(typeof document === 'undefined') return; // allows node-based testing of the layer above
+
+const $ = s => document.querySelector(s);
+const examEl = $('#exam');
+
+function fatal(msg){
+  examEl.innerHTML = '<p style="font-family:var(--ui);color:var(--bad);border:1.4px solid var(--bad);padding:12px 16px;border-radius:6px">' +
+    msg + '</p>';
+}
+if(typeof window.markdownit === 'undefined'){
+  fatal('markdown-it failed to load from the CDN — this page needs an internet connection ' +
+        '(and no blocker on cdn.jsdelivr.net) the first time it runs.');
+  document.getElementById('engine-txt').textContent = 'Blocked — see message above';
+  document.getElementById('engine-dot').classList.add('fail');
+  return;
+}
+function safeRender(text){
+  try{ renderExam(text); }
+  catch(err){
+    console.error(err);
+    fatal('Could not parse this exam file: ' + (err && err.message ? err.message : err));
+  }
+}
+let questions = [], meta = {}, graded = false;
+
+/* ---- pyodide ---- */
+let pyReady = null, py = null;
+function bootEngine(){
+  const dot = $('#engine-dot'), txt = $('#engine-txt');
+  pyReady = (async () => {
+    try{
+      if(typeof loadPyodide === 'undefined')
+        throw new Error('pyodide.js did not load from the CDN');
+      py = await loadPyodide({indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/'});
+      txt.textContent = 'Loading SymPy…';
+      await py.loadPackage('sympy');
+      py.runPython(document.getElementById('checker-py').textContent);
+      dot.classList.add('ready'); txt.textContent = 'Math engine ready';
+      return true;
+    }catch(err){
+      dot.classList.add('fail'); txt.textContent = 'Engine failed to load (offline?)';
+      console.error(err);
+      return false;
+    }
+  })();
+}
+async function pyCall(fn, ...args){
+  if(!(await pyReady)) return {ok:false, error:'engine unavailable'};
+  const f = py.globals.get(fn);
+  try{ return JSON.parse(f(...args)); } finally { f.destroy(); }
+}
+const varsCsv = q => q.vars.join(',');
+const assumeJson = q => JSON.stringify(q.assume || {});
+
+/* ---- widgets ---- */
+function ptsChip(q){ return `<span class="pts">${q.points} pt${q.points === 1 ? '' : 's'}</span>`; }
+
+function mountInput(slot, q){
+  slot.innerHTML = `<span class="ans">
+      <input class="ans-input" spellcheck="false" autocomplete="off"
+             aria-label="answer for ${q.id}" placeholder="STACK syntax">
+      <span class="ans-preview" aria-live="polite"></span>
+    </span>${ptsChip(q)}<span class="mark" role="status"></span>`;
+  const input = slot.querySelector('input');
+  const preview = slot.querySelector('.ans-preview');
+  let t = null;
+  input.addEventListener('input', () => {
+    clearTimeout(t);
+    t = setTimeout(async () => {
+      const v = input.value.trim();
+      if(!v){ preview.textContent=''; preview.classList.remove('err'); return; }
+      const r = await pyCall('js_latex', v, varsCsv(q), assumeJson(q));
+      if(r.ok){
+        preview.classList.remove('err');
+        try{ katex.render(r.latex, preview, {throwOnError:false}); }
+        catch(e){ preview.textContent = ''; }
+      }else{
+        preview.classList.add('err');
+        preview.textContent = 'syntax?';
+        preview.title = r.error || '';
+      }
+    }, 350);
+  });
+  q.getAnswer = () => input.value.trim();
+}
+
+/* Render a choice string, treating $...$ segments as KaTeX. */
+function renderMathText(target, text){
+  const re = /\$([^\s$][^$]*?[^\s$]|\S)\$/g;
+  let last = 0, m;
+  while((m = re.exec(text))){
+    if(m.index > last) target.appendChild(document.createTextNode(text.slice(last, m.index)));
+    const span = document.createElement('span');
+    if(typeof katex !== 'undefined'){
+      try{ katex.render(m[1], span, {throwOnError:false}); }
+      catch(e){ span.textContent = m[0]; }
+    } else span.textContent = m[0];
+    target.appendChild(span);
+    last = m.index + m[0].length;
+  }
+  if(last < text.length) target.appendChild(document.createTextNode(text.slice(last)));
+}
+
+function mountDropdown(slot, q){
+  slot.innerHTML = `<span class="dd-wrap">
+      <button type="button" class="dd-btn" aria-haspopup="listbox" aria-expanded="false"
+              aria-label="answer for ${q.id}">
+        <span class="dd-label dd-placeholder">— select —</span>
+        <span class="dd-caret" aria-hidden="true">▾</span>
+      </button>
+      <div class="dd-pop" role="listbox" hidden></div>
+    </span>${ptsChip(q)}<span class="mark" role="status"></span>`;
+  const btn = slot.querySelector('.dd-btn');
+  const label = slot.querySelector('.dd-label');
+  const pop = slot.querySelector('.dd-pop');
+  let selected = null;
+  q.choices.forEach((c, i) => {
+    const opt = document.createElement('div');
+    opt.className = 'dd-opt';
+    opt.setAttribute('role', 'option');
+    opt.setAttribute('aria-selected', 'false');
+    opt.tabIndex = -1;
+    opt.dataset.i = i;
+    renderMathText(opt, c.text);
+    pop.appendChild(opt);
+  });
+  const openPop = () => {
+    pop.hidden = false;
+    btn.setAttribute('aria-expanded', 'true');
+    const opts = pop.querySelectorAll('.dd-opt');
+    (opts[selected != null ? selected : 0] || opts[0]).focus();
+  };
+  const closePop = refocus => {
+    pop.hidden = true;
+    btn.setAttribute('aria-expanded', 'false');
+    if(refocus) btn.focus();
+  };
+  const choose = i => {
+    selected = i;
+    label.classList.remove('dd-placeholder');
+    label.innerHTML = '';
+    renderMathText(label, q.choices[i].text);
+    pop.querySelectorAll('.dd-opt').forEach((o, j) =>
+      o.setAttribute('aria-selected', j === i ? 'true' : 'false'));
+    closePop(true);
+  };
+  btn.addEventListener('click', () => pop.hidden ? openPop() : closePop(false));
+  btn.addEventListener('keydown', e => {
+    if(e.key === 'ArrowDown' || e.key === 'ArrowUp'){ e.preventDefault(); openPop(); }
+  });
+  pop.addEventListener('keydown', e => {
+    const opts = [...pop.querySelectorAll('.dd-opt')];
+    const idx = opts.indexOf(document.activeElement);
+    if(e.key === 'ArrowDown'){ e.preventDefault(); (opts[idx + 1] || opts[0]).focus(); }
+    else if(e.key === 'ArrowUp'){ e.preventDefault(); (opts[idx - 1] || opts[opts.length - 1]).focus(); }
+    else if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); if(idx >= 0) choose(idx); }
+    else if(e.key === 'Escape'){ e.preventDefault(); closePop(true); }
+  });
+  pop.addEventListener('click', e => {
+    const o = e.target.closest('.dd-opt');
+    if(o) choose(parseInt(o.dataset.i, 10));
+  });
+  q.getAnswer = () => selected;
+}
+
+function mountTf(slot, q){
+  slot.innerHTML = `<span class="tf" role="group" aria-label="true or false, ${q.id}">
+      <button type="button" data-v="true">True</button>
+      <button type="button" data-v="false">False</button>
+    </span>${ptsChip(q)}<span class="mark" role="status"></span>`;
+  const btns = slot.querySelectorAll('button');
+  btns.forEach(b => b.addEventListener('click', () => {
+    btns.forEach(x => x.classList.remove('sel'));
+    b.classList.add('sel');
+  }));
+  q.getAnswer = () => {
+    const sel = slot.querySelector('button.sel');
+    return sel ? sel.dataset.v === 'true' : null;
+  };
+}
+
+function mountChoiceList(slot, q){
+  // marker anchors the question; choices are the next task list after it
+  slot.innerHTML = `${ptsChip(q)}<span class="mark" role="status"></span>`;
+  let blk = slot.closest('p, h1, h2, h3, li') || slot;
+  let ul = blk.nextElementSibling;
+  while(ul && ul.tagName !== 'UL') ul = ul.nextElementSibling;
+  if(!ul){ q.getAnswer = () => null; q.correctSet = new Set(); return; }
+  ul.classList.add('mc-list');
+  const kind = q.type === 'mc' ? 'radio' : 'checkbox';
+  const lis = [...ul.children];
+  q.correctSet = new Set();
+  lis.forEach((li, i) => {
+    const m = li.firstChild && li.firstChild.nodeType === 3
+      && li.firstChild.textContent.match(/^\s*\[( |x|X)\]\s*/);
+    if(m){
+      if(m[1].toLowerCase() === 'x') q.correctSet.add(i);
+      li.firstChild.textContent = li.firstChild.textContent.replace(m[0], '');
+    }
+    const inp = document.createElement('input');
+    inp.type = kind; inp.name = 'g-' + q.id; inp.value = i;
+    inp.id = `g-${q.id}-${i}`;
+    const lab = document.createElement('label');
+    lab.htmlFor = inp.id;
+    while(li.firstChild) lab.appendChild(li.firstChild);
+    li.appendChild(inp); li.appendChild(lab);
+  });
+  if(q.shuffle){
+    for(let i = lis.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      ul.insertBefore(lis[j], lis[i].nextSibling);
+      [lis[i], lis[j]] = [lis[j], lis[i]];
+    }
+  }
+  q.getAnswer = () => {
+    const sel = new Set([...ul.querySelectorAll('input:checked')].map(x => parseInt(x.value, 10)));
+    return sel.size ? sel : null;
+  };
+}
+
+/* ---- render an exam ---- */
+function renderExam(text){
+  graded = false;
+  const parsed = parseExam(text);
+  meta = parsed.meta;
+  questions = parsed.questions;
+  $('#title').textContent = meta.title || 'Untitled exam';
+  document.title = (meta.title || 'mdexam');
+  examEl.innerHTML = parsed.html;
+
+  examEl.querySelectorAll('.q-slot').forEach(slot => {
+    const q = questions[parseInt(slot.dataset.q, 10)];
+    ({input: mountInput, dropdown: mountDropdown, tf: mountTf,
+      mc: mountChoiceList, multi: mountChoiceList})[q.type](slot, q);
+    q.slot = slot;
+  });
+
+  // attach each solution block to the question that precedes it
+  const order = [...examEl.querySelectorAll('.q-slot, .solution')];
+  let lastQ = null;
+  for(const el of order){
+    if(el.classList.contains('q-slot')) lastQ = questions[parseInt(el.dataset.q, 10)];
+    else if(lastQ && !lastQ.solutionEl) lastQ.solutionEl = el;
+  }
+
+  examEl.querySelectorAll('.math').forEach(el => {
+    const tex = el.textContent;
+    try{ katex.render(tex, el, {displayMode: el.dataset.display === '1', throwOnError:false}); }
+    catch(e){ /* leave raw TeX visible */ }
+  });
+
+  const total = questions.reduce((s,q) => s + q.points, 0);
+  $('#total-pts').textContent = total + ' pts';
+  $('#score').textContent = '';
+  $('#grade').disabled = false;
+}
+
+/* ---- grading ---- */
+function setState(q, ok, note){
+  q.slot.classList.remove('q-ok','q-bad');
+  q.slot.classList.add(ok ? 'q-ok' : 'q-bad');
+  const old = q.slot.querySelector('.wrong-note');
+  if(old) old.remove();
+  if(!ok && note){
+    const n = document.createElement('span');
+    n.className = 'wrong-note'; n.textContent = note;
+    q.slot.appendChild(n);
+  }
+}
+
+async function gradeAll(){
+  const btn = $('#grade');
+  btn.disabled = true; btn.textContent = 'Checking…';
+  let earned = 0, total = 0;
+  for(const q of questions){
+    total += q.points;
+    let ok = false, note = q.wrong;
+    const a = q.getAnswer();
+    if(a === null || a === '' ){
+      ok = false; note = note || 'No answer given.';
+    } else if(q.type === 'input'){
+      const r = await pyCall('js_check', a, q.answer, varsCsv(q), assumeJson(q), q.check, q.tol);
+      ok = !!r.ok;
+      if(!ok && r.error) note = (note ? note + ' ' : '') + '(' + r.error + ')';
+    } else if(q.type === 'dropdown'){
+      ok = !!(q.choices[a] && q.choices[a].correct);
+    } else if(q.type === 'tf'){
+      ok = a === q.answer;
+    } else {
+      ok = a && a.size === q.correctSet.size && [...a].every(x => q.correctSet.has(x));
+    }
+    if(ok) earned += q.points;
+    setState(q, ok, note);
+    if(q.solutionEl && (meta.show_solutions_after_submit || 'true') !== 'false'){
+      q.solutionEl.classList.add('show');
+    }
+  }
+  graded = true;
+  $('#score').textContent = `${earned} / ${total} pts`;
+  btn.disabled = false; btn.textContent = 'Check answers';
+}
+
+/* ---- controls ---- */
+$('#grade').addEventListener('click', gradeAll);
+$('#reset').addEventListener('click', () => {
+  const src = window.__currentSrc || document.getElementById('sample-exam').textContent;
+  safeRender(src);
+});
+$('#file').addEventListener('change', ev => {
+  const f = ev.target.files[0];
+  if(!f) return;
+  const r = new FileReader();
+  r.onload = () => { window.__currentSrc = r.result; safeRender(r.result); };
+  r.onerror = () => fatal('Could not read the selected file.');
+  r.readAsText(f);
+  ev.target.value = '';
+});
+
+/* ---- boot ---- */
+document.addEventListener('pointerdown', e => {
+  document.querySelectorAll('.dd-pop:not([hidden])').forEach(p => {
+    const wrap = p.closest('.dd-wrap');
+    if(!wrap.contains(e.target)){
+      p.hidden = true;
+      wrap.querySelector('.dd-btn').setAttribute('aria-expanded', 'false');
+    }
+  });
+});
+bootEngine();
+window.__currentSrc = document.getElementById('sample-exam').textContent;
+safeRender(window.__currentSrc);
+})();
+</script>
+</body>
+</html>
