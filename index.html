@@ -922,14 +922,6 @@ function renderExam(text){
     q.slot = slot;
   });
 
-  // attach each solution block to the question that precedes it
-  const order = [...examEl.querySelectorAll('.q-slot, .solution')];
-  let lastQ = null;
-  for(const el of order){
-    if(el.classList.contains('q-slot')) lastQ = questions[parseInt(el.dataset.q, 10)];
-    else if(lastQ && !lastQ.solutionEl) lastQ.solutionEl = el;
-  }
-
   examEl.querySelectorAll('.math').forEach(el => {
     const tex = el.textContent;
     try{ katex.render(tex, el, {displayMode: el.dataset.display === '1', throwOnError:false}); }
@@ -978,8 +970,8 @@ async function gradeAll(){
     }
     if(ok) earned += q.points;
     setState(q, ok, note);
-    if(q.solutionEl && (meta.show_solutions_after_submit || 'true') !== 'false'){
-      q.solutionEl.classList.add('show');
+    if((meta.show_solutions_after_submit || 'true') !== 'false'){
+      examEl.querySelectorAll('.solution').forEach(el => el.classList.add('show'));
     }
   }
   graded = true;
